@@ -1,6 +1,7 @@
 from math import sqrt
 import array
 
+"""x-(self.width/2), y - (self.height/2)"""
 # Colors
 DARK_ORCHID = [191, 62, 255]
 SKY_BLUE = [135, 206, 255]
@@ -17,10 +18,10 @@ def quadratic(a, b, c):
   discriminant = b ** 2 - 4 * a * c
   if discriminant < 0:
     return None
-  elif discriminant == 0:
+  elif discriminant == 0 and a != 0:
     x0 = - 0, 5 * b / a
     return x0
-  else:
+  elif a != 0:
     x1 = -0.5 * (b + sqrt(discriminant))/2 * a
     x2 = -0.5 * (b - sqrt(discriminant))/2 * a
     sol = [x1, x2]
@@ -70,12 +71,15 @@ class Vector:
     out += str(self.z) + "z"
     return out
 
+  def set_z_coordinate(self, value):
+    self.z = value
+
 
 class Ray:
 
   def __init__(self, origin, direction):
     self.orig = origin
-    self.dir = direction  # .normalize()
+    self.dir = direction.normalize()
 
 
 class Sphere:
@@ -86,7 +90,7 @@ class Sphere:
     self.col = color
 
   def intersects(self, ray):
-    dif = ray.orig - self.c
+    dif = ray.orig.sub(self.c)
     a = ray.dir.dot_p(ray.dir)
     b = 2 * ray.dir.dot_p(dif)
     c = dif.dot_p(dif) - self.r
@@ -100,6 +104,7 @@ class Camera:
     self.height = height
     self.focal_dis = focal_distance
     self.origin = origin
+    # self.origin.set_z_coordinate(self.focal_dis)
 
   def generate_ray(self):
     for y in range(self.height):
@@ -108,10 +113,11 @@ class Camera:
         direction = pixel_pos.sub(self.origin)
         yield Ray(self.origin, direction), x, y
 
+
 class Image:
-  def __init__(self, width: int, height: int):
-    self.width = width
-    self.height = height
+  def __init__(self, camera):
+    self.width = camera.width
+    self.height = camera.height
     self.max_val = 255
     self.ppm_header = f'P6 {self.width} {self.height} {self.max_val}\n'
     self.image = array.array('B', BLACK * self.width * self.height)
@@ -130,63 +136,41 @@ class Image:
 
 class Engine:
 
-  def render(self, scene):
-    width = scene.width
-    height = scene.height
-    aspect_ratio = width / height
-    x0 = -1.0
-    x1 = +1.0
-    x_step = (x1 - x0) / (width - 1)
-    y0 = -1.0 / aspect_ratio
-    y1 = +1.0 / aspect_ratio
-    y_step = (y1 - y0) / (height - 1)
+  def __init__(self, image, camera, objects):
+    self.cam = camera
+    self.im = image
+    self.obs = objects
 
-    camera = scene.camera
-    panel = Image(width, height)
+  def render(self):
+    for ray, x, y in self.cam.generate_ray():
+        self.im.set_pixel_color(x, y, self.ray_trace(ray))
+    self.im.export_ppm()
 
-    for j in range(height):
-      y = y0 + j * y_step
-      for i in range(width):
-        x = x0 + i * x_step
-        ray = Ray(camera, Vector(x, y, 0).sub(camera))
-        panel.set_pixel_color(i, j, self.ray_trace(ray, scene))
-
-  def ray_trace(self, ray, scene):
+  def ray_trace(self, ray):
     color = BLACK
-    dist_hit, obj_hit = self.nearest_object(scene, ray)
+    dist_hit, obj_hit = self.nearest_object(ray)
     if obj_hit is None:
       return color
     else:
       return obj_hit.col
 
-  def nearest_object(self, scene, ray):
-    min_distance = None
+  def nearest_object(self, ray):
+    min_distance = INFINITY
     object_hit = None
-    for ob in scene.ob:
-      distance = scene.ob.interects(ray)
-      if distance is not None:
+    for ob in self.obs:
+      distance = ob.intersects(ray)
+      if distance is not None and distance < min_distance:
         min_distance = distance
         object_hit = ob
     return min_distance, object_hit
 
 
-class Scene:
-
-  def __init__(self, camera, object_list: list, width: int, height: int):
-    self.cam = camera
-    self.ob = object_list
-    self.w = width
-    self.h = height
-
-
 def main():
-  pass
-  # objects = [Sphere(Vector(0, 0, 0))]
-  # scene = Scene(Vector(0, 0, 0), objects, 1920, 1080)
-
+  objects = [Sphere(Vector(0, 0, 200), 500, ROYAL_BLUE)]
+  camera = Camera(1920, 1080, 500, Vector(0, 0, 0)) # 1080p - FullHD
+  image = Image(camera)
+  engine = Engine(image, camera, objects)
+  engine.render()
 
 if __name__ == '__main__':
-  # main()
-  image = Image(1920, 1080)
-  image.set_pixel_color(300, 300, ROYAL_BLUE)
-  image.export_ppm()
+  main()
