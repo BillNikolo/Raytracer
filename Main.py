@@ -84,10 +84,11 @@ class Ray:
 
 class Sphere:
 
-  def __init__(self, center: Vector, radius, color):
+  def __init__(self, center: Vector, radius, color, isitalight: bool):
     self.c = center
-    self.r = radius
+    self.r = radius*1000
     self.col = color
+    self.isitalight = isitalight
 
   def intersects(self, ray):
     dif = ray.orig.sub(self.c)
@@ -166,8 +167,9 @@ class Engine:
 
 
 def main():
-  objects = [Sphere(Vector(0, 0, 200), 500, ROYAL_BLUE)]
-  camera = Camera(1920, 1080, 500, Vector(0, 0, 0)) # 1080p - FullHD
+  objects = [Sphere(Vector(150, 0, 800), 2, ROYAL_BLUE, False), Sphere(Vector(600, -300, 800), 6, YELLOW, True),
+             Sphere(Vector(0, 700, 800), 300, EMERALD_GREEN, False)]
+  camera = Camera(1920, 1080, 1000, Vector(0, 0, 0)) # 1080p - FullHD
   image = Image(camera)
   engine = Engine(image, camera, objects)
   engine.render()
