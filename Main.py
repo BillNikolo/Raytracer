@@ -1,16 +1,5 @@
 from math import sqrt
-import array
-
-"""x-(self.width/2), y - (self.height/2)"""
-# Colors
-DARK_ORCHID = [191, 62, 255]
-SKY_BLUE = [135, 206, 255]
-ROYAL_BLUE = [72, 118, 255]
-RED = [238, 44, 44]
-YELLOW = [255, 255, 0]
-EMERALD_GREEN = [0, 201, 87]
-BLACK = [0, 0, 0]
-WHITE = [255, 255, 255]
+import array, random
 
 INFINITY = 10 ** 10
 
@@ -19,7 +8,7 @@ def quadratic(a, b, c):
   if discriminant < 0:
     return None
   elif discriminant == 0 and a != 0:
-    x0 = - 0, 5 * b / a
+    x0 = - 0.5 * b / a
     return x0
   elif a != 0:
     x1 = -0.5 * (b + sqrt(discriminant))/2 * a
@@ -34,6 +23,9 @@ class Vector:
     self.y = y
     self.z = z
 
+  def rgb_mul(self, V):
+    return Vector(self.x * V.x, self.y * V.y, self.z * V.z)
+
   def magnitude(self):
     return sqrt(self.x ** 2 + self.y ** 2 + self.z ** 2)
 
@@ -43,7 +35,7 @@ class Vector:
   def sub(self, V):
     return Vector(self.x - V.x, self.y - V.y, self.z - V.z)
 
-  def multi_scalar(self, s):
+  def mult_scalar(self, s):
     return Vector(self.x * s, self.y * s, self.z * s)
 
   def dot_p(self, V):
@@ -74,19 +66,23 @@ class Vector:
   def set_z_coordinate(self, value):
     self.z = value
 
+  def reverse(self):
+    return Vector(-self.x, -self.y, -self.z)
+
 
 class Ray:
 
-  def __init__(self, origin, direction):
+  def __init__(self, origin, direction, color: Vector):
     self.orig = origin
     self.dir = direction.normalize()
+    self.color = color
 
 
 class Sphere:
 
   def __init__(self, center: Vector, radius, color, isitalight: bool):
     self.c = center
-    self.r = radius*1000
+    self.r = radius
     self.col = color
     self.isitalight = isitalight
 
@@ -94,25 +90,26 @@ class Sphere:
     dif = ray.orig.sub(self.c)
     a = ray.dir.dot_p(ray.dir)
     b = 2 * ray.dir.dot_p(dif)
-    c = dif.dot_p(dif) - self.r
+    c = dif.dot_p(dif) - self.r * self.r
     length = quadratic(a, b, c)
     return length
 
+  def normal(self, V):
+    return V.sub(self.c)
 
 class Camera:
-  def __init__(self, width, height, focal_distance, origin: Vector):
+  def __init__(self, width, height, focal_distance):
     self.width = width
     self.height = height
     self.focal_dis = focal_distance
-    self.origin = origin
-    # self.origin.set_z_coordinate(self.focal_dis)
+    self.origin = Vector(0, 0, -self.focal_dis)
 
   def generate_ray(self):
     for y in range(self.height):
       for x in range(self.width):
-        pixel_pos = Vector(x-(self.width/2), y - (self.height/2), self.focal_dis)
+        pixel_pos = Vector(x-(self.width/2), y - (self.height/2), 0)
         direction = pixel_pos.sub(self.origin)
-        yield Ray(self.origin, direction), x, y
+        yield Ray(self.origin, direction, WHITE), x, -y
 
 
 class Image:
@@ -121,13 +118,13 @@ class Image:
     self.height = camera.height
     self.max_val = 255
     self.ppm_header = f'P6 {self.width} {self.height} {self.max_val}\n'
-    self.image = array.array('B', BLACK * self.width * self.height)
+    self.image = array.array('B', WHITE_BG * self.width * self.height)
 
   def set_pixel_color(self, x, y, color):
     index = 3 * (y * self.width + x)
-    self.image[index] = color[0]
-    self.image[index + 1] = color[1]
-    self.image[index + 2] = color[2]
+    self.image[index] = int(color.x * 255)
+    self.image[index + 1] = int(color.y * 255)
+    self.image[index + 2] = int(color.z * 255)
 
   def export_ppm(self):
     with open('base_Image.ppm', 'wb') as f:
@@ -147,32 +144,61 @@ class Engine:
         self.im.set_pixel_color(x, y, self.ray_trace(ray))
     self.im.export_ppm()
 
-  def ray_trace(self, ray):
-    color = BLACK
-    dist_hit, obj_hit = self.nearest_object(ray)
+  def ray_trace(self, ray, depth=0):
+    bg_color = BLACK
+    if depth > 4:
+      return bg_color
+    intersection_dist, obj_hit, new_color = self.nearest_object(ray)
     if obj_hit is None:
-      return color
+      return bg_color
+    elif not obj_hit.isitalight:
+      return new_color
     else:
-      return obj_hit.col
+      self.ray_trace(self.ray_path(ray, intersection_dist, obj_hit, new_color), depth+1)
+      return new_color
 
   def nearest_object(self, ray):
     min_distance = INFINITY
     object_hit = None
+    spot_color = BLACK
     for ob in self.obs:
       distance = ob.intersects(ray)
       if distance is not None and distance < min_distance:
         min_distance = distance
         object_hit = ob
-    return min_distance, object_hit
+        spot_color = ray.color.rgb_mul(object_hit.col)
+    return min_distance, object_hit, spot_color
+
+  def ray_path(self, ray, distance, object, color):
+    intersection_point = (ray.dir.mult_scalar(distance)).add(ray.orig)
+    normal = object.normal(intersection_point).normalize()
+    rnd_vec = Vector(intersection_point.x + (random.random()-0.5),
+                     intersection_point.y + (random.random()-0.5),
+                     intersection_point.z + (random.random()-0.5)).normalize()
+    if rnd_vec.dot_p(normal) < 0:
+      rnd_vec = rnd_vec.reverse()
+    return Ray(intersection_point, rnd_vec, color)
+
+# Colors
+DARK_ORCHID = Vector(0.5, 0.2, 1)
+SKY_BLUE = Vector(0, 0.3, 0.9)
+ROYAL_BLUE = Vector(0.5, 0.3, 0.9)
+RED = Vector(1, 0.3, 0)
+YELLOW = Vector(0.2, 1, 0)
+EMERALD_GREEN = Vector(0, 0.9, 0)
+BLACK = Vector(0, 0, 0)
+WHITE = Vector(1, 1, 1)
+WHITE_BG = [255, 255, 255]
 
 
 def main():
-  objects = [Sphere(Vector(150, 0, 800), 2, ROYAL_BLUE, False), Sphere(Vector(600, -300, 800), 6, YELLOW, True),
-             Sphere(Vector(0, 700, 800), 300, EMERALD_GREEN, False)]
-  camera = Camera(1920, 1080, 1000, Vector(0, 0, 0)) # 1080p - FullHD
+  objects = [Sphere(Vector(150, 0, 400), 150, ROYAL_BLUE, True), Sphere(Vector(600, 500, 1000), 220, YELLOW, False),
+             Sphere(Vector(-200, -1000, 1000), 800, EMERALD_GREEN, True)]
+  camera = Camera(1280, 720, 500)  # 720p
   image = Image(camera)
   engine = Engine(image, camera, objects)
   engine.render()
+
 
 if __name__ == '__main__':
   main()
