@@ -14,7 +14,10 @@ def quadratic(a, b, c):
     x1 = -0.5 * (b + sqrt(discriminant))/2 * a
     x2 = -0.5 * (b - sqrt(discriminant))/2 * a
     sol = [x1, x2]
-    return min([i for i in sol if i > 0])
+    if x1 > 0 or x2 > 0:
+      return min([i for i in sol if i > 0])
+    else:
+      return None
 
 class Vector:
 
@@ -72,18 +75,47 @@ class Vector:
 
 class Ray:
 
-  def __init__(self, origin, direction, color: Vector):
+  def __init__(self, origin, direction):
     self.orig = origin
     self.dir = direction.normalize()
+
+
+class Material:
+
+  def __init__(self, color):
     self.color = color
+
+
+class Diffuse(Material):
+
+  def __init__(self, color):
+    super().__init__()
+
+  def diff_reflections(self, ray, distance, object, new_rays: int):
+    rays_list = []
+    new_color = self.color
+    for i in range(new_rays):
+      temp_ray = self.reflected_ray(ray, distance, object)
+      rays_list.append(temp_ray)
+    return rays_list
+
+  def reflected_ray(self, ray, distance, object):
+    intersection_point = (ray.dir.mult_scalar(distance)).add(ray.orig)
+    normal = object.normal(intersection_point).normalize()
+    rnd_vec = Vector(intersection_point.x + (random.random()-0.5),
+                     intersection_point.y + (random.random()-0.5),
+                     intersection_point.z + (random.random()-0.5)).normalize()
+    if rnd_vec.dot_p(normal) < 0:
+      rnd_vec = rnd_vec.reverse()
+    return Ray(intersection_point, rnd_vec)
 
 
 class Sphere:
 
-  def __init__(self, center: Vector, radius, color, isitalight: bool):
+  def __init__(self, center: Vector, radius, material: Diffuse, isitalight: bool):
     self.c = center
     self.r = radius
-    self.col = color
+    self.material = material
     self.isitalight = isitalight
 
   def intersects(self, ray):
@@ -97,6 +129,7 @@ class Sphere:
   def normal(self, V):
     return V.sub(self.c)
 
+
 class Camera:
   def __init__(self, width, height, focal_distance):
     self.width = width
@@ -109,7 +142,7 @@ class Camera:
       for x in range(self.width):
         pixel_pos = Vector(x-(self.width/2), y - (self.height/2), 0)
         direction = pixel_pos.sub(self.origin)
-        yield Ray(self.origin, direction, WHITE), x, -y
+        yield Ray(self.origin, direction), x, -y
 
 
 class Image:
@@ -154,8 +187,11 @@ class Engine:
     elif not obj_hit.isitalight:
       return new_color
     else:
-      self.ray_trace(self.ray_path(ray, intersection_dist, obj_hit, new_color), depth+1)
+      new_rays, new_color = obj_hit.material.diff_reflections(ray, intersection_dist, obj_hit, 4)
+      for ray in new_rays:
+        self.ray_trace(ray, depth+1)
       return new_color
+
 
   def nearest_object(self, ray):
     min_distance = INFINITY
@@ -166,18 +202,8 @@ class Engine:
       if distance is not None and distance < min_distance:
         min_distance = distance
         object_hit = ob
-        spot_color = ray.color.rgb_mul(object_hit.col)
     return min_distance, object_hit, spot_color
 
-  def ray_path(self, ray, distance, object, color):
-    intersection_point = (ray.dir.mult_scalar(distance)).add(ray.orig)
-    normal = object.normal(intersection_point).normalize()
-    rnd_vec = Vector(intersection_point.x + (random.random()-0.5),
-                     intersection_point.y + (random.random()-0.5),
-                     intersection_point.z + (random.random()-0.5)).normalize()
-    if rnd_vec.dot_p(normal) < 0:
-      rnd_vec = rnd_vec.reverse()
-    return Ray(intersection_point, rnd_vec, color)
 
 # Colors
 DARK_ORCHID = Vector(0.5, 0.2, 1)
