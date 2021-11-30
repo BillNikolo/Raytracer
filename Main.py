@@ -1,7 +1,5 @@
 from math import sqrt
-import array, random, pygame
-from pygame import gfxdraw
-import time
+import random, pygame
 
 INFINITY = 10 ** 10
 
@@ -81,6 +79,12 @@ class Vector:
             min(int(self.y * 255), 255),
             min(int(self.z * 255), 255))
 
+  def average_of_two(self, V):
+    if V == Vector(0, 0, 0) or V == Vector(1, 1, 1):
+      return V
+    else:
+      return Vector((self.x + V.x)/2, (self.y + V.y)/2, (self.z + V.z)/2)
+
 
 class Ray:
 
@@ -148,9 +152,9 @@ class Camera:
   def generate_ray(self):
     for y in range(self.height):
       for x in range(self.width):
-        pixel_pos = Vector(x - (self.width/2), y - (self.height/2), 0)
+        pixel_pos = Vector(x - (self.width/2), (self.height/2) - y, 0)
         direction = pixel_pos.sub(self.origin)
-        yield Ray(self.origin, direction), x, -y
+        yield Ray(self.origin, direction), x, y
 
 
 class Image:
@@ -161,6 +165,9 @@ class Image:
     self.window = pygame.display.set_mode((self.width, self.height))
     pygame.display.set_caption("Raytracer")
     self.window.fill(BLACK.extract_color())
+    self.update_counter = 0
+    self.sample_matrix = [[Vector(0, 0, 0)]*self.height] * self.width
+
     """self.width = camera.width
     self.height = camera.height
     self.max_val = 255
@@ -168,10 +175,12 @@ class Image:
     self.image = array.array('B', WHITE_BG * self.width * self.height)"""
 
   def set_pixel_color(self, x, y, color):
-    # x = int(x + (self.width/2))
-    y = int((self.height/2) - y)
-    self.window.set_at((x, y), color.extract_color())
-    print((x, y), color.extract_color())
+    self.sample_matrix[x][y] = self.sample_matrix[x][y].average_of_two(color)
+    self.window.set_at((x, y), self.sample_matrix[x][y].extract_color())
+    self.update_counter += 1
+    if self.update_counter % 200 == 0:
+      self.export_final_image()
+
     """index = 3 * (y * self.width + x)
     self.image[index] = min(int(color.x * 255), 255)
     self.image[index + 1] = min(int(color.y * 255), 255)
@@ -179,7 +188,6 @@ class Image:
 
   def export_final_image(self):
     pygame.display.update()
-    print("Display updated")
 
     """with open('base_Image.ppm', 'wb') as f:
       f.write(bytearray(self.ppm_header, "ascii"))
@@ -236,7 +244,7 @@ DARK_ORCHID = Vector(0.5, 0.2, 1)
 SKY_BLUE = Vector(0.1, 0.3, 0.9)
 ROYAL_BLUE = Vector(0.5, 0.3, 0.9)
 RED = Vector(1, 0.3, 0.1)
-YELLOW = Vector(0.2, 1, 0)
+YELLOW = Vector(0.8, 1, 0)
 EMERALD_GREEN = Vector(0.1, 0.9, 0.1)
 BLACK = Vector(0, 0, 0)
 WHITE = Vector(1, 1, 1)
@@ -246,18 +254,29 @@ WHITE_BG = [255, 255, 255]
 def main():
   camera = Camera(640, 360, 500)
   image = Image(camera)
-  objects = [Sphere(Vector(150, 0, 1500), 200, Diffuse(WHITE, False)),
-             Sphere(Vector(600, 500, 1000), 220, Diffuse(YELLOW, True)),
-             Sphere(Vector(-200, -1000, 1000), 800, Diffuse(EMERALD_GREEN, False))]
+  objects = [Sphere(Vector(150, 0, 900), 100, Diffuse(WHITE, True)),
+             Sphere(Vector(550, 450, 1000), 220, Diffuse(YELLOW, True)),
+             Sphere(Vector(-200, -1000, 1400), 800, Diffuse(WHITE, False))]
   engine = Engine(image, camera, objects)
-  engine.render()
-  print("End of rendering")
-  wait = True
-  while wait:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
+  run = True
+  runs_counter = 0
+  while run:
+    runs_counter += 1
+    engine.render()
+    print("End of rendering")
+    wait = True
+    if runs_counter >= 3:
+      while wait:
+        for event in pygame.event.get():
+          if event.type == pygame.QUIT:
             wait = False
+            run = False
+          elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+            wait = False
+    image.window.fill(BLACK.extract_color())
   pygame.quit()
 
 if __name__ == '__main__':
   main()
+
+
