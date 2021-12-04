@@ -11,15 +11,13 @@ def quadratic(a, b, c):
     x0 = - 0.5 * b / a
     return x0
   elif a != 0:
-    x2 = -0.5 * (b - sqrt(discriminant)) / 2 * a
-    return x2
-    # x1 = -0.5 * (b + sqrt(discriminant))/2 * a
-    # x2 = -0.5 * (b - sqrt(discriminant))/2 * a
-    # sol = [x1, x2]
-    # if x1 > 0 or x2 > 0:
-      # return min([i for i in sol if i > 0])
-    # else:
-      # return None
+    x1 = -0.5 * (b + sqrt(discriminant))/2 * a
+    x2 = -0.5 * (b - sqrt(discriminant))/2 * a
+    sol = [x1, x2]
+    if x1 > 0 or x2 > 0:
+      return min([i for i in sol if i > 0])
+    else:
+      return None
 
 class Vector:
 
@@ -166,7 +164,13 @@ class Image:
     pygame.display.set_caption("Raytracer")
     self.window.fill(BLACK.extract_color())
     self.update_counter = 0
-    self.sample_matrix = [[Vector(0, 0, 0)]*self.height] * self.width
+    self.sample_matrix = []
+    self.max_color_value = 1.0
+    for _ in range(self.width):
+      l = []
+      self.sample_matrix.append(l)
+      for i in range(self.height):
+        l.append(Vector(0, 0, 0))
 
     """self.width = camera.width
     self.height = camera.height
@@ -175,11 +179,16 @@ class Image:
     self.image = array.array('B', WHITE_BG * self.width * self.height)"""
 
   def set_pixel_color(self, x, y, color):
-    self.sample_matrix[x][y] = self.sample_matrix[x][y].average_of_two(color)
-    self.window.set_at((x, y), self.sample_matrix[x][y].extract_color())
+    self.sample_matrix[x][y] = self.sample_matrix[x][y].add(color)
+    gamma_correction = Vector(sqrt(self.sample_matrix[x][y].x),
+                              sqrt(self.sample_matrix[x][y].y),
+                              sqrt(self.sample_matrix[x][y].z))
+    self.window.set_at((x, y), gamma_correction.extract_color())
     self.update_counter += 1
     if self.update_counter % 200 == 0:
       self.export_final_image()
+
+    #self.max_sample_value
 
     """index = 3 * (y * self.width + x)
     self.image[index] = min(int(color.x * 255), 255)
@@ -222,7 +231,7 @@ class Engine:
       for sample_ray, weights in obj_hit.material.get_sample_rays(intersection_point, normal):
         sample_color = self.ray_trace(sample_ray, depth + 1)
         sample_color = sample_color.rgb_mult(weights)
-        sample_color = sample_color.rgb_mult(obj_hit.material.color)
+        # sample_color = sample_color.rgb_mult(obj_hit.material.color)
         color = color.add(sample_color)
         num_samples += 1
       color = color.mult_scalar(1 / num_samples)
@@ -256,7 +265,7 @@ def main():
   image = Image(camera)
   objects = [Sphere(Vector(150, 0, 900), 100, Diffuse(WHITE, True)),
              Sphere(Vector(550, 450, 1000), 220, Diffuse(YELLOW, True)),
-             Sphere(Vector(-200, -1000, 1400), 800, Diffuse(WHITE, False))]
+             Sphere(Vector(0, -1000400, 1400), 1000000, Diffuse(WHITE, True))]
   engine = Engine(image, camera, objects)
   run = True
   runs_counter = 0
@@ -265,7 +274,7 @@ def main():
     engine.render()
     print("End of rendering")
     wait = True
-    if runs_counter >= 3:
+    if runs_counter >= 1:
       while wait:
         for event in pygame.event.get():
           if event.type == pygame.QUIT:
@@ -273,10 +282,10 @@ def main():
             run = False
           elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
             wait = False
-    image.window.fill(BLACK.extract_color())
   pygame.quit()
 
 if __name__ == '__main__':
   main()
 
 
+# Cornell Box example
