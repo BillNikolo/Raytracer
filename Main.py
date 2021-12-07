@@ -1,5 +1,5 @@
 from math import sqrt
-import random, pygame
+import random, pygame, time
 
 INFINITY = 10 ** 10
 
@@ -129,12 +129,19 @@ class Sphere:
     self.material = material
 
   def intersects(self, ray):
-    dif = ray.orig.sub(self.c)
-    a = ray.dir.dot_p(ray.dir)
-    b = 2 * ray.dir.dot_p(dif)
-    c = dif.dot_p(dif) - self.r * self.r
-    length = quadratic(a, b, c)
-    return length
+    L = self.c.sub(ray.orig)
+    tca = L.dot_p(ray.dir)
+    if tca < 0:
+      return None
+
+    d2 = L.dot_p(L) - tca * tca
+
+    if d2 > self.r * self.r:
+      return None
+    thc = sqrt(self.r * self.r - d2)
+    t0 = tca - thc
+    t1 = tca + thc
+    return min(t0, t1)
 
   def normal(self, V):
     return V.sub(self.c)
@@ -180,13 +187,10 @@ class Image:
 
   def set_pixel_color(self, x, y, color):
     self.sample_matrix[x][y] = self.sample_matrix[x][y].add(color)
-    gamma_correction = Vector(sqrt(self.sample_matrix[x][y].x),
-                              sqrt(self.sample_matrix[x][y].y),
-                              sqrt(self.sample_matrix[x][y].z))
-    self.window.set_at((x, y), gamma_correction.extract_color())
-    self.update_counter += 1
-    if self.update_counter % 200 == 0:
-      self.export_final_image()
+    temp = max(self.sample_matrix[x][y].x, self.sample_matrix[x][y].y, self.sample_matrix[x][y].z)
+    if temp > self.max_color_value:
+      self.max_color_value = temp
+
 
     #self.max_sample_value
 
@@ -196,6 +200,16 @@ class Image:
     self.image[index + 2] = min(int(color.z * 255), 255)"""
 
   def export_final_image(self):
+    for y in range(self.height):
+      for x in range(self.width):
+        gamma_correction = Vector(sqrt(self.sample_matrix[x][y].x/self.max_color_value),
+                                  sqrt(self.sample_matrix[x][y].y/self.max_color_value),
+                                  sqrt(self.sample_matrix[x][y].z/self.max_color_value))
+        self.window.set_at((x, y), gamma_correction.extract_color())
+        self.update_counter += 1
+        if self.update_counter % 200 == 0:
+          pygame.display.update()
+          time.sleep(0.01)
     pygame.display.update()
 
     """with open('base_Image.ppm', 'wb') as f:
@@ -231,7 +245,6 @@ class Engine:
       for sample_ray, weights in obj_hit.material.get_sample_rays(intersection_point, normal):
         sample_color = self.ray_trace(sample_ray, depth + 1)
         sample_color = sample_color.rgb_mult(weights)
-        # sample_color = sample_color.rgb_mult(obj_hit.material.color)
         color = color.add(sample_color)
         num_samples += 1
       color = color.mult_scalar(1 / num_samples)
@@ -249,7 +262,10 @@ class Engine:
 
 
 # Colors
-DARK_ORCHID = Vector(0.5, 0.2, 1)
+LIGHT_GREEN = Vector(0.2, 0.8, 0.1)
+LIGHT_BLUE = Vector(0.6, 0.8, 1)
+LIGHT_RED = Vector(1, 0.2, 0.3)
+LIGHT_GRAY = Vector(0.8, 0.8, 0.9)
 SKY_BLUE = Vector(0.1, 0.3, 0.9)
 ROYAL_BLUE = Vector(0.5, 0.3, 0.9)
 RED = Vector(1, 0.3, 0.1)
@@ -263,18 +279,24 @@ WHITE_BG = [255, 255, 255]
 def main():
   camera = Camera(640, 360, 500)
   image = Image(camera)
-  objects = [Sphere(Vector(150, 0, 900), 100, Diffuse(WHITE, True)),
-             Sphere(Vector(550, 450, 1000), 220, Diffuse(YELLOW, True)),
-             Sphere(Vector(0, -1000400, 1400), 1000000, Diffuse(WHITE, True))]
+  objects = [Sphere(Vector(-1.2*(10**8), -1*(10**7), 4*(10**8)), 6*(10**7), Diffuse(WHITE, False)),
+             Sphere(Vector(1.3*(10**8), 5*(10**7), 4*(10**8)), 5*(10**7), Diffuse(WHITE, False)),
+             Sphere(Vector(0, 0, 1400000000), 10 ** 9, Diffuse(LIGHT_BLUE, False)),
+             Sphere(Vector(0, 0, -1400000000), 10 ** 9, Diffuse(LIGHT_BLUE, False)),
+             Sphere(Vector(-1220000000, 0, 5*(10**8)), 10**9, Diffuse(LIGHT_RED, False)),
+             Sphere(Vector(1220000000, 0, 5*(10**8)), 10**9, Diffuse(LIGHT_GREEN, False)),
+             Sphere(Vector(0, -1045000000, 5*(10**8)), 10 ** 9, Diffuse(LIGHT_GRAY, False)),
+             Sphere(Vector(0, 1120000000, 5*(10**8)), 10**9, Diffuse(WHITE, True))]
   engine = Engine(image, camera, objects)
   run = True
   runs_counter = 0
   while run:
     runs_counter += 1
     engine.render()
-    print("End of rendering")
+    print("End of rendering:", runs_counter)
     wait = True
-    if runs_counter >= 1:
+    if runs_counter >= 25:
+      print("Final Image")
       while wait:
         for event in pygame.event.get():
           if event.type == pygame.QUIT:
