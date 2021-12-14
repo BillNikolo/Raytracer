@@ -157,7 +157,9 @@ class Camera:
   def generate_ray(self):
     for y in range(self.height):
       for x in range(self.width):
-        pixel_pos = Vector(x - (self.width/2), (self.height/2) - y, 0)
+        x_cord = (x - (self.width/2)) + round(random.random(), 2)
+        y_cord = ((self.height/2) - y) + round(random.random(), 2)
+        pixel_pos = Vector(x_cord, y_cord, 0)
         direction = pixel_pos.sub(self.origin)
         yield Ray(self.origin, direction), x, y
 
@@ -192,8 +194,6 @@ class Image:
       self.max_color_value = temp
 
 
-    #self.max_sample_value
-
     """index = 3 * (y * self.width + x)
     self.image[index] = min(int(color.x * 255), 255)
     self.image[index + 1] = min(int(color.y * 255), 255)
@@ -202,6 +202,10 @@ class Image:
   def export_final_image(self):
     for y in range(self.height):
       for x in range(self.width):
+        for event in pygame.event.get():
+          if event.type == pygame.QUIT:
+            pygame.quit()
+            print("Sceen closed")
         gamma_correction = Vector(sqrt(self.sample_matrix[x][y].x/self.max_color_value),
                                   sqrt(self.sample_matrix[x][y].y/self.max_color_value),
                                   sqrt(self.sample_matrix[x][y].z/self.max_color_value))
@@ -226,6 +230,10 @@ class Engine:
 
   def render(self):
     for ray, x, y in self.cam.generate_ray():
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+              pygame.quit()
+              print("Sceen closed")
         self.im.set_pixel_color(x, y, self.ray_trace(ray))
     self.im.export_final_image()
 
@@ -274,9 +282,13 @@ EMERALD_GREEN = Vector(0.1, 0.9, 0.1)
 BLACK = Vector(0, 0, 0)
 WHITE = Vector(1, 1, 1)
 WHITE_BG = [255, 255, 255]
+clock = pygame.time.Clock()
 
+FRAME_COUNT = 0
+FRAME_RATE = 60
 
 def main():
+
   camera = Camera(640, 360, 500)
   image = Image(camera)
   objects = [Sphere(Vector(-1.2*(10**8), -1*(10**7), 4*(10**8)), 6*(10**7), Diffuse(WHITE, False)),
@@ -288,6 +300,16 @@ def main():
              Sphere(Vector(0, -1045000000, 5*(10**8)), 10 ** 9, Diffuse(LIGHT_GRAY, False)),
              Sphere(Vector(0, 1120000000, 5*(10**8)), 10**9, Diffuse(WHITE, True))]
   engine = Engine(image, camera, objects)
+
+  # # clock for testing
+  # font = pygame.font.Font(None, 25)
+  # total_seconds = FRAME_COUNT // FRAME_RATE
+  # minutes = total_seconds // 60
+  # seconds = total_seconds % 60
+  # output_string = "Time: {0:02}:{1:02}".format(minutes, seconds)
+  # text = font.render(output_string, True, WHITE_BG)
+  # image.window.blit(text, [250, 250])
+
   run = True
   runs_counter = 0
   while run:
@@ -304,6 +326,7 @@ def main():
             run = False
           elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
             wait = False
+    clock.tick(FRAME_RATE)
   pygame.quit()
 
 if __name__ == '__main__':
@@ -311,3 +334,6 @@ if __name__ == '__main__':
 
 
 # Cornell Box example
+# Aliasing
+# pypy, pygame cffi 0.2.1 github, Nuitka
+
