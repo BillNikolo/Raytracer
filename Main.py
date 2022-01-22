@@ -265,6 +265,9 @@ WHITE = Vector(1, 1, 1)
 WHITE_BG = [255, 255, 255]
 clock = pygame.time.Clock()
 
+FRAME_COUNT = 0
+FRAME_RATE = 60
+
 def main():
 
   camera = Camera(640, 360, 500)
