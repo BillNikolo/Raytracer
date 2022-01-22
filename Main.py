@@ -1,23 +1,7 @@
 from math import sqrt
 import random, pygame, time
 
-INFINITY = 10 ** 10
-
-def quadratic(a, b, c):
-  discriminant = b ** 2 - 4 * a * c
-  if discriminant < 0:
-    return None
-  elif discriminant == 0 and a != 0:
-    x0 = - 0.5 * b / a
-    return x0
-  elif a != 0:
-    x1 = -0.5 * (b + sqrt(discriminant))/2 * a
-    x2 = -0.5 * (b - sqrt(discriminant))/2 * a
-    sol = [x1, x2]
-    if x1 > 0 or x2 > 0:
-      return min([i for i in sol if i > 0])
-    else:
-      return None
+INFINITY = float('inf')
 
 class Vector:
 
@@ -133,9 +117,7 @@ class Sphere:
     tca = L.dot_p(ray.dir)
     if tca < 0:
       return None
-
     d2 = L.dot_p(L) - tca * tca
-
     if d2 > self.r * self.r:
       return None
     thc = sqrt(self.r * self.r - d2)
@@ -192,7 +174,6 @@ class Image:
     temp = max(self.sample_matrix[x][y].x, self.sample_matrix[x][y].y, self.sample_matrix[x][y].z)
     if temp > self.max_color_value:
       self.max_color_value = temp
-
 
     """index = 3 * (y * self.width + x)
     self.image[index] = min(int(color.x * 255), 255)
@@ -284,31 +265,20 @@ WHITE = Vector(1, 1, 1)
 WHITE_BG = [255, 255, 255]
 clock = pygame.time.Clock()
 
-FRAME_COUNT = 0
-FRAME_RATE = 60
-
 def main():
 
   camera = Camera(640, 360, 500)
   image = Image(camera)
   objects = [Sphere(Vector(-1.2*(10**8), -1*(10**7), 4*(10**8)), 6*(10**7), Diffuse(WHITE, False)),
              Sphere(Vector(1.3*(10**8), 5*(10**7), 4*(10**8)), 5*(10**7), Diffuse(WHITE, False)),
-             Sphere(Vector(0, 0, 1400000000), 10 ** 9, Diffuse(LIGHT_BLUE, False)),
-             Sphere(Vector(0, 0, -1400000000), 10 ** 9, Diffuse(LIGHT_BLUE, False)),
-             Sphere(Vector(-1220000000, 0, 5*(10**8)), 10**9, Diffuse(LIGHT_RED, False)),
-             Sphere(Vector(1220000000, 0, 5*(10**8)), 10**9, Diffuse(LIGHT_GREEN, False)),
-             Sphere(Vector(0, -1045000000, 5*(10**8)), 10 ** 9, Diffuse(LIGHT_GRAY, False)),
-             Sphere(Vector(0, 1120000000, 5*(10**8)), 10**9, Diffuse(WHITE, True))]
+             Sphere(Vector(0, 0, 14*(10**8)), 10 ** 9, Diffuse(LIGHT_BLUE, False)),
+             Sphere(Vector(0, 0, -14*(10**8)), 10 ** 9, Diffuse(LIGHT_BLUE, False)),
+             Sphere(Vector(-122*(10**7), 0, 5*(10**8)), 10**9, Diffuse(LIGHT_RED, False)),
+             Sphere(Vector(122*(10**7), 0, 5*(10**8)), 10**9, Diffuse(LIGHT_GREEN, False)),
+             Sphere(Vector(0, -1045*(10**6), 5*(10**8)), 10 ** 9, Diffuse(LIGHT_GRAY, False)),
+             Sphere(Vector(0, 112*(10**7), 5*(10**8)), 10**9, Diffuse(WHITE, True))]
   engine = Engine(image, camera, objects)
 
-  # # clock for testing
-  # font = pygame.font.Font(None, 25)
-  # total_seconds = FRAME_COUNT // FRAME_RATE
-  # minutes = total_seconds // 60
-  # seconds = total_seconds % 60
-  # output_string = "Time: {0:02}:{1:02}".format(minutes, seconds)
-  # text = font.render(output_string, True, WHITE_BG)
-  # image.window.blit(text, [250, 250])
 
   run = True
   runs_counter = 0
@@ -317,7 +287,7 @@ def main():
     engine.render()
     print("End of rendering:", runs_counter)
     wait = True
-    if runs_counter >= 25:
+    if runs_counter >= 50:
       print("Final Image")
       while wait:
         for event in pygame.event.get():
@@ -333,7 +303,6 @@ if __name__ == '__main__':
   main()
 
 
-# Cornell Box example
-# Aliasing
-# pypy, pygame cffi 0.2.1 github, Nuitka
+
+
 
